@@ -145,8 +145,8 @@ def predicted_dmd(A, initial_state, steps=100):
 from matplotlib.animation import FuncAnimation
 
 # ---------- animate: true vs DMD vs EDMD ----------
-train_angle = 5      # what the models learn from
-test_angle  = 5.1      # the swing they have never seen
+train_angle = 1.2      # what the models learn from
+test_angle  = 1.3      # the swing they have never seen
 L = 1.0
 
 # 1. train both models
