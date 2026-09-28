@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cvxpy as cp
 
-from pendulum_lib import dt, update, simulate, simulate_with_control, fit_dmdc
+from pendulum_library import dt, update, simulate, simulate_with_control, fit_dmdc
 
 np.random.seed(0)   # same random pushes every run -> repeatable results
 
@@ -83,3 +83,52 @@ ax2.legend()
 
 plt.tight_layout()
 plt.show()
+
+# ---------------------------------------------------------------
+# 4. Animation: MPC pendulum vs uncontrolled pendulum + push bar
+# ---------------------------------------------------------------
+from matplotlib.animation import FuncAnimation
+
+L = 1.0
+fig2, ax = plt.subplots(figsize=(6, 6))
+ax.set_xlim(-1.3, 1.3)
+ax.set_ylim(-1.6, 0.6)
+ax.set_aspect("equal")
+ax.set_title("Koopman MPC (blue) vs no control (gray)")
+ax.plot(0, 0, "k+", markersize=12)                      # pivot
+
+# one rod + bob per pendulum: (theta over time, colour, label)
+pendulums = [
+    (no_control[:, 0], "gray", "no control"),
+    (history_x[:, 0],  "tab:blue", "Koopman MPC"),
+]
+drawn = []
+for theta, color, name in pendulums:
+    x = L * np.sin(theta)
+    y = -L * np.cos(theta)
+    rod, = ax.plot([], [], "-", lw=2, color=color, alpha=0.8)
+    bob, = ax.plot([], [], "o", markersize=14, color=color, label=name)
+    drawn.append((x, y, rod, bob))
+
+# push bar at the bottom: length and direction = motor push u
+push_line, = ax.plot([], [], "-", lw=8, color="tab:red", solid_capstyle="butt", label="push u")
+ax.plot([-1.0, 1.0], [-1.4, -1.4], color="lightgray", lw=1)     # scale: ends = push limit
+ax.text(0, -1.55, "push (bar ends = limit ±2)", ha="center", fontsize=8)
+time_text = ax.text(-1.25, 0.45, "")
+ax.legend(loc="upper right", fontsize=8)
+
+u_max = 2.0
+def draw_frame(k):
+    artists = []
+    for x, y, rod, bob in drawn:
+        rod.set_data([0, x[k]], [0, y[k]])
+        bob.set_data([x[k]], [y[k]])
+        artists += [rod, bob]
+    u_now = history_u[k] if k < len(history_u) else 0.0
+    push_line.set_data([0, u_now / u_max], [-1.4, -1.4])         # scaled so ±2 reaches the ends
+    time_text.set_text(f"t = {k*dt:.1f} s   u = {u_now:+.2f}")
+    return artists + [push_line, time_text]
+
+anim = FuncAnimation(fig2, draw_frame, frames=len(history_x), interval=dt * 1000, blit=True)
+plt.show()
+# to save as a GIF instead:  anim.save("koopman_mpc.gif", writer="pillow")
